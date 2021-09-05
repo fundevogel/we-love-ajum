@@ -15,7 +15,7 @@ class Ajum():
     Tools for interacting with the AJuM database
     """
 
-    VERSION = '0.1.0'
+    VERSION = '0.2.0'
 
 
     # Cache directory
