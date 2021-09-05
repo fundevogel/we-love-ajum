@@ -27,6 +27,7 @@ backup_db     Backs up remote database
 build_db      Builds local database
 build_index   Builds index of reviews per ISBN
 clear_cache   Removes cached index files
+query         Queries remote database
 ```
 
 For everything else, check out `src/ajum.py` - feedback appreciated, as always!

@@ -3,6 +3,17 @@ from src.ajum import Ajum
 
 
 ###
+# CONFIG (START)
+#
+
+DOIT_CONFIG = {'verbosity': 2}
+
+#
+# CONFIG (END)
+###
+
+
+###
 # TASKS (START)
 #
 
@@ -56,6 +67,7 @@ def task_build_db():
         'actions': [build_db],
     }
 
+
 def task_clear_cache():
     """
     Removes cached index files
@@ -70,6 +82,71 @@ def task_clear_cache():
 
     return {
         'actions': [clear_cache],
+    }
+
+
+def task_query():
+    """
+    Queries remote database
+    """
+
+    def show_next(text: str = 'Continue? '):
+        # Confirm to continue
+        return input(text) in [
+            '',
+            'y', 'yes', 'yo', 'yep', 'sure',
+            'j', 'ja', 'jo', 'jepp', 'klar',
+        ]
+
+
+    def query():
+        # Initialize object
+        ajum = init()
+
+        # Query database
+        reviews = ajum.query(
+            search_term=get_var('search_term', ''),
+            title=get_var('title', ''),
+            first_name=get_var('first_name', ''),
+            last_name=get_var('last_name', ''),
+            illustrator=get_var('illustrator', ''),
+            archive=get_var('archive', 'False') == 'True',
+            wolgast=get_var('wolgast', 'False') == 'True'
+        )
+
+        # Count reviews
+        count = len(reviews)
+
+        if count > 0:
+            print('We found {} reviews.'.format(str(count)))
+
+            # If confirmed ..
+            if show_next('Show results? '):
+                # .. loop over reviews ..
+                for i, review in enumerate(reviews):
+                    # Increase by one for human-readable numbering
+                    i += 1
+
+                    # Let user know where we are
+                    print('Review {} of {}:'.format(str(i), str(count)))
+
+                    # Print review data
+                    for key, value in ajum.fetch_review(review).items():
+                        print('{}: {}'.format(key, value))
+
+                    # Add newline for improved spacing
+                    print('\n')
+
+                    # Always remember this: If told to ..
+                    if not show_next():
+                        # .. stop!
+                        break
+
+        else:
+            print('Your query did not match any review, please try again.')
+
+    return {
+        'actions': [query],
     }
 
 #
