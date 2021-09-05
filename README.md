@@ -8,7 +8,7 @@ This small library is a Python wrapper for [ajum.de](https://www.ajum.de/index.p
 
 Running `setup.sh` will install all dependencies inside a virtual environment, ready for action:
 
-```text
+```shell
 # Set up & activate virtualenv
 virtualenv -p python3 venv && source venv/bin/activate
 
@@ -27,12 +27,19 @@ backup_db     Backs up remote database
 build_db      Builds local database
 build_index   Builds index of reviews per ISBN
 clear_cache   Removes cached index files
+fetch         Fetches review data from remote database
 query         Queries remote database
 ```
 
 For everything else, check out `src/ajum.py` - feedback appreciated, as always!
 
 **Note:** As downloading reviews *just* to build an index file means making A LOT of requests, we included `index.json`, which contains references for all ISBNs being reviewed, with a total of 8766 currently available reviews - so if you need reviews for a known ISBN, get *only* what you need simply like so:
+
+```text
+$ doit fetch id=YOUR_ID
+```
+
+.. or get your hands dirty and dive right in:
 
 ```python
 from src.ajum import Ajum

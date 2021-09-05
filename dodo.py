@@ -85,6 +85,32 @@ def task_clear_cache():
     }
 
 
+def task_fetch():
+    """
+    Fetches review data from remote database
+    """
+
+    def fetch():
+        # Initialize object
+        ajum = init()
+
+        # Determine review ID
+        data = ajum.fetch_review(get_var('id', ''))
+
+        # If review for given ID exists ..
+        if data:
+            # .. print its data
+            for key, value in data.items():
+                print('{}: {}'.format(key, value))
+
+        else:
+            print('No review found for given ID, please try again.')
+
+    return {
+        'actions': [fetch],
+    }
+
+
 def task_query():
     """
     Queries remote database
