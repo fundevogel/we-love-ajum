@@ -128,7 +128,6 @@ class Ajum():
 
                     # Trim whitespaces
                     data[term] = separator.join(texts).strip()
-                    # data[term] = tag.find_next_sibling('td').text.strip()
 
             # Make adjustments
             # (1) If author has trailing comma ..
@@ -159,6 +158,10 @@ class Ajum():
                 's': 'datenbank',
                 'id': review,
             })
+
+            # (2) Validate response by checking for disclaimer
+            if 'Namenskürzel' not in response.text:
+                return {}
 
             # (2) .. save response
             with open(html_file, 'w') as file:
