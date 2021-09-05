@@ -536,7 +536,7 @@ class Ajum():
             reviews.extend(self.get_review_ids(params))
 
         # Extract data for each review
-        return fetch_reviews(reviews)
+        return self.fetch_reviews(reviews)
 
 
     # LOCAL DATABASE BACKUP
