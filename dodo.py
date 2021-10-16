@@ -27,7 +27,7 @@ def task_backup_db():
         ajum = init()
 
         # Create backup
-        ajum.backup_db(get_var('force', 'False') == 'True')
+        ajum.backup_db(get_var('force', 'False') == 'True', get_var('archive', 'False') == 'True')
 
     return {
         'actions': [backup_db],

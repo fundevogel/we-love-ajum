@@ -544,7 +544,7 @@ class Ajum():
 
     # LOCAL DATABASE BACKUP
 
-    def backup_db(self, force: bool = False) -> None:
+    def backup_db(self, force: bool = False, include_archive: bool = False) -> None:
         """
         Backs up remote database
         """
@@ -553,6 +553,9 @@ class Ajum():
         if force:
             # .. clear exisiting cache first
             self.clear_cache()
+
+        # Determine whether to include archived reviews
+        include_archive = 'JA' if include_archive else ''
 
         # Loop over 'AJuM' database results pages
         for i in range(0, 176):
@@ -579,7 +582,7 @@ class Ajum():
                     'gattung': '0',
                     'medienart': '0',
                     'wolgast': '',
-                    'archiv': '',
+                    'archiv': include_archive,
                 })
 
                 # (2) .. store them
