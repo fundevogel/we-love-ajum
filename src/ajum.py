@@ -215,7 +215,6 @@ class Ajum():
 
         # Build query parameters
         params = {
-            # 'id': '',
             's': 'datenbank',
             'do': 'suchen',
             'suchtext': search_term,
@@ -269,7 +268,7 @@ class Ajum():
             'Krieg',
             'Kriminalität',
             'LesePeter',
-			'Liebe/Erste Liebe',
+            'Liebe/Erste Liebe',
             'Literatur',
             'Mädchen',
             'Märchen',
@@ -327,6 +326,7 @@ class Ajum():
         if media_type in [
             'Abreißkalender',
             'Arbeitsheft',
+            'Audio-CD',  # deprecated but matching 30 archived reviews
             'Audio-CD',
             'Audio-CD / Hörbuch / Musik',
             'Audio-Kassette',
@@ -519,9 +519,8 @@ class Ajum():
         response = self.call_api(params)
 
         # Check number of results
-        matches = re.findall('wurden\s(\d+)\sRezensionen', response.text)
+        matches = re.findall(r'wurden\s(\d+)\sRezensionen', response.text)
 
-        # if not matches or matches.len() != 2:
         # Skip if no results
         if not matches:
             return []
@@ -590,6 +589,8 @@ class Ajum():
 
                 # (3) .. and wait three seconds
                 time.sleep(self.timer)
+
+            print('Loading reviews from {} ..'.format(json_file))
 
             # Load review IDs
             reviews = load_json(json_file)
