@@ -160,7 +160,7 @@ class Ajum():
             })
 
             # (2) Validate response by checking for disclaimer
-            if 'Namenskürzel' not in response.text:
+            if 'presserechtliche Verantwortung' not in response.text:
                 return {}
 
             # (2) .. save response
