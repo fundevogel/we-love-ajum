@@ -55,6 +55,9 @@ class Ajum():
         Extracts review IDs from results page HTML
         """
 
+        # Load redirects for ill-conceived review links
+        redirects = load_json('redirects.json')
+
         # Take care of duplicates since review IDs appear twice per page
         reviews = set()
 
@@ -65,8 +68,16 @@ class Ajum():
 
             # If URL links to review ..
             if 'id' in query:
-                # .. store its ID
-                reviews.add(query['id'][0])
+                # (1) .. assign review identifier
+                review = query['id'][0]
+
+                # (2) .. redirect invalid requests ..
+                if review in redirects:
+                    # .. with valid ones
+                    review = redirects[review]
+
+                # (3) .. store review ID
+                reviews.add(review)
 
         return list(reviews)
 
