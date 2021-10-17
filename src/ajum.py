@@ -130,10 +130,10 @@ class Ajum():
                     data[term] = separator.join(texts).strip()
 
             # Make adjustments
-            # (1) If author has trailing comma ..
-            if 'Autor' in data and data['Autor'][-1] == ',':
-                # .. remove it
-                data['Autor'] = data['Autor'][:-1]
+            # (1) Attempt to ..
+            if 'Autor' in data:
+                # .. remove trailing comma from author
+                data['Autor'] = data['Autor'].rstrip(',')
 
             # (2) Since it has no label ..
             if tag.text.strip() == 'Preis:':
@@ -207,7 +207,7 @@ class Ajum():
         age: str = '',
         genre: str = '',
         archive: bool = False,
-        wolgast: bool = False,
+        wolgast: bool = False
     ) -> dict:
         """
         Queries remote database for matching reviews
