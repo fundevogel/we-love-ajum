@@ -553,11 +553,34 @@ class Ajum():
             # .. clear exisiting cache first
             self.clear_cache()
 
-        # Determine whether to include archived reviews
-        include_archive = 'JA' if include_archive else ''
+        # Determine relevant total of reviews
+        # (1) Fetch database overview page
+        text = self.call_api({'s': 'datenbank'}).text
+
+        # (2) Default to active reviews ..
+        total = re.search(r'(\d+)\saktuelle\sRezensionen', text)
+
+        # .. but amend total if archived reviews are included ..
+        if include_archive:
+            # .. which evidently outnumber active reviews
+            total = re.search(r'weitere\s(\d+)\sRezensionen', text)
+
+        # (3) Format result as integer
+        total = int(total[1])
 
         # Loop over 'AJuM' database results pages
-        for i in range(0, 176):
+        for i in range(0, 10000):
+            # If the current starting point ..
+            start = i * 50
+
+            # .. is higher than the number of reviews ..
+            if start > total:
+                # .. report back
+                print('No more reviews left, exiting ..')
+
+                # .. abort iteration
+                break
+
             json_file = '{}/{}.json'.format(self.cache_dir, str(i))
 
             # If not cached yet ..
@@ -567,7 +590,7 @@ class Ajum():
                 # (1) .. fetch all review IDs
                 reviews = self.get_review_ids({
                     's': 'datenbank',
-                    'start': str(i * 50),
+                    'start': str(start),
                     'do': 'suchen',
                     'bewertung': '0',
                     'titel': '',
@@ -581,7 +604,7 @@ class Ajum():
                     'gattung': '0',
                     'medienart': '0',
                     'wolgast': '',
-                    'archiv': include_archive,
+                    'archiv': 'JA' if include_archive else '',
                 })
 
                 # (2) .. store them
