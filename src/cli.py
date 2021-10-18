@@ -5,7 +5,7 @@ from .ajum import Ajum
 
 @click.group()
 @click.pass_context
-@click.version_option('0.4.0')
+@click.version_option('0.5.0')
 @click.option('-i', '--index-file', default='index.json', type=click.Path(False), help='Index file.')
 @click.option('-d', '--db-file', default='database.json', type=click.Path(False), help='Database file.')
 @click.option('-c', '--cache-dir', default='.db', type=click.Path(False), help='Cache directory.')

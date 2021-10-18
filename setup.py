@@ -7,7 +7,7 @@ with open('README.md', 'r', encoding='utf8') as file:
 # Define package metadata
 setuptools.setup(
     name='we-love-ajum',
-    version='0.4.0',
+    version='0.5.0',
     author='Martin Folkers',
     author_email='hello@twobrain.io',
     maintainer='Fundevogel',
