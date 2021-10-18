@@ -15,9 +15,6 @@ class Ajum():
     Tools for interacting with the AJuM database
     """
 
-    VERSION = '0.4.0'
-
-
     # Database directory
     db_path = '.db'
 
