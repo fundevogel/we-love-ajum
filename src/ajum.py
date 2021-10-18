@@ -7,7 +7,7 @@ import urllib
 import requests
 from bs4 import BeautifulSoup as bs
 
-from src.helpers import load_json, dump_json, dict2hash
+from .helpers import load_json, dump_json, dict2hash
 
 
 class Ajum():
@@ -161,8 +161,6 @@ class Ajum():
 
         # If not cached yet ..
         if not os.path.exists(html_file):
-            print('Fetching {} ..'.format(html_file))
-
             # (1) .. send request
             html = self.call_api({'id': review})
 

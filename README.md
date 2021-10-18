@@ -10,24 +10,27 @@ We deem their work to be invaluable for kindergartens, (pre)schools, universitie
 
 ## Getting started
 
-Running `setup.sh` will install all dependencies inside a virtual environment, ready for action:
+Running `setup.bash` will install all dependencies inside a virtual environment, ready for action:
 
-```shell
+```bash
 # Set up & activate virtualenv
-virtualenv -p python3 venv && source venv/bin/activate
+virtualenv -p python3 venv
+
+# shellcheck disable=SC1091
+source venv/bin/activate
 
 # Install dependencies
-python3 -m pip install -r requirements.txt
+python -m pip install --editable .
 ```
 
 
 ## Usage
 
-These commands are available:
+The following commands are available:
 
 ```text
-$ python main.py --help
-Usage: main.py [OPTIONS] COMMAND [ARGS]...
+$ ajum --help
+Usage: ajum [OPTIONS] COMMAND [ARGS]...
 
   Tools for interacting with the 'AJuM' database.
 
@@ -50,24 +53,24 @@ Commands:
   show    Shows data of given REVIEW
 ```
 
-For everything else, check out the `--help` command, like this: `python main.py backup --help` .. or have a look at `src/ajum.py` - feedback appreciated, as always!
+For everything else, check out the `--help` command, like this: `ajum backup --help` .. or have a look at `src/ajum.py` - feedback appreciated, as always!
 
 **Note:** As downloading reviews *just* to build an index file means making A LOT of requests, we included `index.json`, which contains references for all ISBNs being reviewed, with a total of 8766 currently available reviews - so if you need reviews for a known ISBN, get *only* what you need simply like so:
 
-```text
-$ doit fetch id=YOUR_ID
+```bash
+$ ajum show YOUR_ID
 ```
 
-.. or get your hands dirty and dive right in:
+.. or get your hands dirty and start your own script:
 
 ```python
 from src.ajum import Ajum
 
-# Create object
-obj = Ajum()
+# Initialize object
+ajum = Ajum()
 
 # Fetch review data
-data = obj.get_review('YOUR_ID')
+data = ajum.get_review('YOUR_ID')
 ```
 
 .. or visit `https://www.ajum.de/index.php?s=datenbank&id=YOUR_ID` - nah, just kidding :)
