@@ -132,18 +132,11 @@ class Ajum():
 
         # (2) .. subsequent result pages
         for i in range(1, self.max_pages(matches[0])):
-            if i > 160:
-                continue
-
             # Set starting point
             params['start'] = str(i * 50)
 
             # Determine JSON file
             json_file = '{}/{}.json'.format(self.db_path, dict2hash(params))
-
-            # HACK
-            if os.path.exists('{}/{}.json'.format(self.db_path, i)):
-                json_file = '{}/{}.json'.format(self.db_path, i)
 
             # If not cached yet ..
             if not os.path.exists(json_file):
@@ -168,8 +161,6 @@ class Ajum():
 
         # If not cached yet ..
         if not os.path.exists(html_file):
-            print('Fetching {} ..'.format(html_file))
-
             # (1) .. send request
             html = self.call_api({'id': review})
 

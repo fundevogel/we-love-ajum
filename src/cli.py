@@ -3,10 +3,6 @@ import click
 from .ajum import Ajum
 
 
-###
-# TASKS (START)
-#
-
 @click.group()
 @click.pass_context
 @click.version_option('0.4.0')
@@ -89,7 +85,6 @@ def clear(ctx) -> None:
 
     # Flush cache
     ctx.obj['ajum'].clear_cache()
-
 
 
 @cli.command()
@@ -176,11 +171,3 @@ def query(ctx, search_term: str, title: str, first_name: str, last_name: str, il
 
     else:
         click.echo('Your query did not match any review, please try again.')
-
-#
-# TASKS (END)
-###
-
-
-if __name__ == '__main__':
-    cli()
