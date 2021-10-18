@@ -7,4 +7,4 @@ virtualenv -p python3 venv
 source venv/bin/activate
 
 # Install dependencies
-pip install --editable .
+python -m pip install --editable .
