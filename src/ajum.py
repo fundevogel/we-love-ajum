@@ -7,7 +7,7 @@ import urllib
 import requests
 from bs4 import BeautifulSoup as bs
 
-from src.helpers import load_json, dump_json
+from src.helpers import load_json, dump_json, dict2hash
 
 
 class Ajum():
@@ -18,8 +18,8 @@ class Ajum():
     VERSION = '0.3.0'
 
 
-    # Cache directory
-    cache_dir = '.db'
+    # Database directory
+    db_path = '.db'
 
 
     # Request headers
@@ -40,17 +40,42 @@ class Ajum():
 
     # GENERAL
 
-    def call_api(self, params: dict):
+    def call_api(self, params: dict = {}, headers: dict = {}) -> str:
         """
         Connects to database API
         """
 
-        return requests.get('https://www.ajum.de/index.php', params=params, headers=self.headers)
+        # Base URL
+        base_url = 'https://www.ajum.de/index.php'
+
+        # Build query parameters
+        params = {**{'s': 'datenbank'}, **params}
+
+        # Build request headers
+        headers = {**self.headers, **headers}
+
+        # Wait some time ..
+        time.sleep(self.timer)
+
+        # .. before making an API call
+        return requests.get(base_url, params=params, headers=headers).text
+
+
+    def id2file(self, review: str) -> str:
+        return '{}/{}.html'.format(self.db_path, review)
+
+
+    def file2id(self, html_file: str) -> str:
+        return os.path.splitext(os.path.basename(html_file))[0]
+
+
+    def max_pages(self, total: str) -> int:
+        return (int(total) // 50) + 1
 
 
     # RESULTS PAGE
 
-    def extract_reviews(self, html: str) -> list:
+    def extract_review_ids(self, html: str) -> list:
         """
         Extracts review IDs from results page HTML
         """
@@ -82,23 +107,82 @@ class Ajum():
         return list(reviews)
 
 
-    def get_review_ids(self, params: dict) -> list:
+    def get_review_ids(self, params: dict, force: bool = False) -> list:
         """
-        Fetches review IDs for results page
+        Collect results pages for given query & extract their review IDs
         """
+
+        # If 'force' mode is activated ..
+        if force:
+            # .. clear exisiting cache first
+            self.clear_cache()
 
         # Send request
-        response = self.call_api(params)
+        self.timer = 0
+        html = self.call_api(params)
+        self.timer = 3
 
-        # Extract reviews
-        return self.extract_reviews(response.text)
+        # Check number of results
+        matches = re.findall(r'wurden\s(\d+)\sRezensionen', html)
+
+        # Skip if no results
+        if not matches:
+            return []
+
+        # Extract review IDs from ..
+        # (1) .. initial results page (first 50 reviews)
+        reviews = self.extract_review_ids(html)
+
+        # (2) .. subsequent result pages
+        for i in range(1, self.max_pages(matches[0])):
+            # Set starting point
+            params['start'] = str(i * 50)
+
+            # Determine JSON file
+            json_file = '{}/{}.json'.format(self.db_path, dict2hash(params))
+
+            # If not cached yet ..
+            if not os.path.exists(json_file):
+                # .. fetch review IDs & store them
+                dump_json(self.extract_review_ids(self.call_api(params)), json_file)
+
+            # Load review IDs
+            reviews.extend(load_json(json_file))
+
+        return reviews
 
 
     # SINGLE REVIEW PAGE
 
-    def extract_data(self, html) -> dict:
+    def fetch_review(self, review: str) -> bool:
         """
-        Extracts data from review page HTML
+        Fetches single review & caches its HTML
+        """
+
+        # Define HTML file for review page
+        html_file = self.id2file(review)
+
+        # If not cached yet ..
+        if not os.path.exists(html_file):
+            print('Fetching {} ..'.format(html_file))
+
+            # (1) .. send request
+            html = self.call_api({'id': review})
+
+            # (2) .. validate response by checking for disclaimer
+            if 'presserechtliche Verantwortung' not in html:
+                return False
+
+            # (3) .. save response text
+            with open(html_file, 'w') as file:
+                file.write(html)
+
+        return True
+
+
+    def extract_review(self, html: str) -> dict:
+        """
+        Extracts single review data from HTML
         """
 
         # Prepare review data
@@ -154,51 +238,40 @@ class Ajum():
         return data
 
 
-    def fetch_review(self, review: str) -> dict:
+    ##
+    # Meta class, combining ..
+    #
+    # - `fetch_review`   - Fetches single review & caches its HTML
+    # - `extract_review` - Extracts single review data from HTML for single review
+    ##
+    def get_review(self, review: str) -> dict:
         """
-        Fetches data for single review
+        Grabs data for single review
         """
 
-        # Define HTML file for review page
-        html_file = '{}/{}.html'.format(self.cache_dir, review)
+        if not self.fetch_review(review):
+            return {}
 
-        # If not cached yet ..
-        if not os.path.exists(html_file):
-            # (1) .. send request
-            response = self.call_api({
-                's': 'datenbank',
-                'id': review,
-            })
-
-            # (2) Validate response by checking for disclaimer
-            if 'presserechtliche Verantwortung' not in response.text:
-                return {}
-
-            # (2) .. save response
-            with open(html_file, 'w') as file:
-                file.write(response.text)
-
-        # Load review page from HTML file
-        with open(html_file, 'r') as file:
+        with open(self.id2file(review), 'r') as file:
             html = file.read()
 
-        # Extract review data
-        return self.extract_data(html)
+        return self.extract_review(html)
 
 
     # MULTIPLE REVIEW PAGES
 
-    def fetch_reviews(self, reviews: list) -> dict:
+    def get_reviews(self, reviews: list) -> dict:
         """
-        Fetches data for multiple reviews
+        Grabs data for multiple reviews
         """
 
-        # Prepare review data store
+        # Create data array
         data = {}
 
-        # Loop over review IDs & fetch their dara
+        # Loop over reviews ..
         for review in reviews:
-            data[review] = self.fetch_review(review)
+            # .. grabbing their data
+            data[review] = self.get_review(review)
 
         return data
 
@@ -218,7 +291,8 @@ class Ajum():
         age: str = '',
         genre: str = '',
         archive: bool = False,
-        wolgast: bool = False
+        wolgast: bool = False,
+        force: bool = True
     ) -> dict:
         """
         Queries remote database for matching reviews
@@ -226,7 +300,6 @@ class Ajum():
 
         # Build query parameters
         params = {
-            's': 'datenbank',
             'do': 'suchen',
             'suchtext': search_term,
             'schlagwort': '0',
@@ -526,30 +599,11 @@ class Ajum():
         if archive is True:
             params['archiv'] = 'JA'
 
-        # Send request
-        response = self.call_api(params)
-
-        # Check number of results
-        matches = re.findall(r'wurden\s(\d+)\sRezensionen', response.text)
-
-        # Skip if no results
-        if not matches:
-            return []
-
-        # Extract review IDs from results pages
-        # (1) Initial page (first 50 reviews)
-        reviews = self.extract_reviews(response.text)
-
-        # (2) Subsequent pages
-        for i in range(1, (int(matches[0]) // 50) + 1):
-            # Set starting point
-            params['start'] = str(i * 50)
-
-            # Fetch them review IDs
-            reviews.extend(self.get_review_ids(params))
+        # Get review IDs
+        reviews = self.get_review_ids(params)
 
         # Extract data for each review
-        return self.fetch_reviews(reviews)
+        return self.get_reviews(reviews)
 
 
     # LOCAL DATABASE BACKUP
@@ -564,92 +618,41 @@ class Ajum():
             # .. clear exisiting cache first
             self.clear_cache()
 
-        # Determine relevant total of reviews
-        # (1) Fetch database overview page
-        text = self.call_api({'s': 'datenbank'}).text
+        params = {
+            'start': '0',
+            'do': 'suchen',
+            'bewertung': '0',
+            'titel': '',
+            'autor1': '',
+            'autor2': '',
+            'illustrator': '',
+            'suchtext': '',
+            'alter': '0',
+            'einsatz': '0',
+            'schlagwort': '0',
+            'gattung': '0',
+            'medienart': '0',
+            'wolgast': '',
+            'archiv': 'JA' if include_archive else '',
+        }
 
-        # (2) Default to active reviews ..
-        total = re.search(r'(\d+)\saktuelle\sRezensionen', text)
+        # Load review IDs
+        reviews = self.get_review_ids(params)
 
-        # .. but amend total if archived reviews are included ..
-        if include_archive:
-            # .. which evidently outnumber active reviews
-            total = re.search(r'weitere\s(\d+)\sRezensionen', text)
-
-        # (3) Format result as integer
-        total = int(total[1])
-
-        # Loop over 'AJuM' database results pages
-        for i in range(0, 10000):
-            # If the current starting point ..
-            start = i * 50
-
-            # .. is higher than the number of reviews ..
-            if start > total:
-                # .. report back
-                print('No more reviews left, exiting ..')
-
-                # .. abort iteration
-                break
-
-            json_file = '{}/{}.json'.format(self.cache_dir, str(i))
-
-            # If not cached yet ..
-            if not os.path.exists(json_file):
-                print('Fetching {} ..'.format(json_file))
-
-                # (1) .. fetch all review IDs
-                reviews = self.get_review_ids({
-                    's': 'datenbank',
-                    'start': str(start),
-                    'do': 'suchen',
-                    'bewertung': '0',
-                    'titel': '',
-                    'autor1': '',
-                    'autor2': '',
-                    'illustrator': '',
-                    'suchtext': '',
-                    'alter': '0',
-                    'einsatz': '0',
-                    'schlagwort': '0',
-                    'gattung': '0',
-                    'medienart': '0',
-                    'wolgast': '',
-                    'archiv': 'JA' if include_archive else '',
-                })
-
-                # (2) .. store them
-                dump_json(reviews, json_file)
-
-                # (3) .. and wait three seconds
-                time.sleep(self.timer)
-
-            print('Loading reviews from {} ..'.format(json_file))
-
-            # Load review IDs
-            reviews = load_json(json_file)
-
-            # Fetch all review pages
-            for review in set(reviews):
-                # Define HTML file for review page
-                html_file = '{}/{}.html'.format(self.cache_dir, review)
-
-                # If not cached yet ..
-                if not os.path.exists(html_file):
-                    print('Fetching {} ..'.format(html_file))
-
-                    # (1) .. fetch data
-                    self.fetch_review(review)
-
-                    # (2) .. and wait three seconds
-                    time.sleep(self.timer)
+        # Loop over review pages ..
+        for review in set(reviews):
+            # .. caching each review
+            self.fetch_review(review)
 
 
     def clear_cache(self) -> None:
         """
         Removes cached index files
         """
-        for file in glob.glob(self.cache_dir + '/*.json'):
+
+        # Loop over JSON files ..
+        for file in glob.glob(self.db_path + '/*.json'):
+            # .. deleting each on of them
             os.remove(file)
 
 
@@ -663,13 +666,13 @@ class Ajum():
         # Prepare index storage
         index = {}
 
-        for html_file in glob.glob(self.cache_dir + '/*.html'):
+        for html_file in glob.glob(self.db_path + '/*.html'):
             # Get review ID from filename
-            review = os.path.splitext(os.path.basename(html_file))[0]
+            review = self.file2id(html_file)
 
             # Determine ISBN
-            # (1) Fetch review data
-            data = self.fetch_review(review)
+            # (1) Load review data
+            data = self.get_review(review)
 
             # (2) Check if ISBN is present ..
             if 'ISBN' not in data:
@@ -687,22 +690,25 @@ class Ajum():
             index[isbn].append(review)
 
         # Create index file
-        dump_json(index, self.index_file)
+        dump_json(dict(sorted(index.items())), self.index_file)
 
 
-    def get_reviews(self, isbn) -> dict:
+    def isbn2reviews(self, isbn) -> dict:
         """
-        Fetches review(s) for given ISBN
+        Grabs review(s) for given ISBN
         """
+
+        # Ensure that index file exists
         if not os.path.exists(self.index_file):
             raise
 
+        # Load index
         index = load_json(self.index_file)
 
         if isbn not in index:
             return {}
 
-        return self.fetch_reviews(index[isbn])
+        return self.get_reviews(index[isbn])
 
 
     # LOCAL DATABASE
@@ -725,19 +731,19 @@ class Ajum():
 
             for review in reviews:
                 # Define HTML file for review page
-                html_file = '{}/{}.html'.format(self.cache_dir, review)
+                html_file = self.id2file(review)
 
                 # If not cached yet ..
                 if not os.path.exists(html_file):
                     # .. we got a problem
                     raise
 
-                # Load review page from HTML file
+                # Load review HTML
                 with open(html_file, 'r') as file:
                     html = file.read()
 
                 # Extract data & store it
-                data[isbn][review] = self.extract_data(html)
+                data[isbn][review] = self.extract_review(html)
 
         # Create database file
         dump_json(data, self.db_file)

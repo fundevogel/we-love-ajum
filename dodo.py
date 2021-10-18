@@ -95,7 +95,7 @@ def task_fetch():
         ajum = init()
 
         # Determine review ID
-        data = ajum.fetch_review(get_var('id', ''))
+        data = ajum.get_review(get_var('id', ''))
 
         # If review for given ID exists ..
         if data:
@@ -157,7 +157,7 @@ def task_query():
                     print('Review {} of {}:'.format(str(i), str(count)))
 
                     # Print review data
-                    for key, value in ajum.fetch_review(review).items():
+                    for key, value in ajum.get_review(review).items():
                         print('{}: {}'.format(key, value))
 
                     # Add newline for improved spacing

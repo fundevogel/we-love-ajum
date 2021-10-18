@@ -1,5 +1,6 @@
 import os
 import json
+import hashlib
 
 
 def create_path(path):
@@ -32,3 +33,7 @@ def dump_json(data, json_file):
 
     with open(json_file, 'w') as file:
         json.dump(data, file, ensure_ascii=False, indent=4)
+
+
+def dict2hash(source: dict) -> str:
+    return hashlib.md5(str(source).encode('utf-8')).hexdigest()
