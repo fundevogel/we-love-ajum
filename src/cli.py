@@ -1,6 +1,6 @@
 import click
 
-from src.ajum import Ajum
+from .ajum import Ajum
 
 
 ###
