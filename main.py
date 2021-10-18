@@ -4,48 +4,19 @@ from src.ajum import Ajum
 
 
 ###
-# UTILITIES (START)
-#
-
-def init():
-    # Initialize object
-    ajum = Ajum(get_var('index_file', 'index.json'), get_var('db_file', 'database.json'))
-
-    # Configure options
-    # (1) Cache directory
-    ajum.cache_dir = get_var('cache_dir', '.db')
-
-    # (2) Waiting time after each request
-    ajum.timer = get_var('timer', 3.0)
-
-    # (3) 'From' header
-    is_from = get_var('is_from', '')
-
-    if is_from:
-        ajum.headers['From'] = is_from
-
-    # (4) User agent
-    user_agent = get_var('user_agent', '')
-
-    if user_agent:
-        ajum.headers['User-Agent'] = user_agent
-
-    return ajum
-
-#
-# UTILITIES (END)
-###
-
-
-###
 # TASKS (START)
 #
 
 @click.group()
 @click.pass_context
-@click.version_option('1.4.2')
-@click.option('--verbose', '-v', count=True, help='Enable verbose mode.')
-def cli(ctx, verbose: int) -> None:
+@click.version_option('0.4.0')
+@click.option('-i', '--index-file', default='index.json', type=click.Path(False), help='Index file.')
+@click.option('-d', '--db-file', default='database.json', type=click.Path(False), help='Database file.')
+@click.option('-c', '--cache-dir', default='.db', type=click.Path(False), help='Cache directory.')
+@click.option('-t', '--timer', default=3.0, help='Waiting time after each request.')
+@click.option('-f', '--is_from', help='"From" header.')
+@click.option('-u', '--user-agent', help='User agent.')
+def cli(ctx, index_file: str, db_file: str, cache_dir: str, timer: float, is_from: str, user_agent: str) -> None:
     """
     Tools for interacting with the 'AJuM' database.
     """
@@ -53,171 +24,163 @@ def cli(ctx, verbose: int) -> None:
     # Ensure context object exists & is dictionary
     ctx.ensure_object(dict)
 
+    # Initialize object
+    ajum = Ajum(index_file, db_file)
+
+    # Configure options
+    # (1) Cache directory
+    ajum.cache_dir = cache_dir
+
+    # (2) Waiting time after each request
+    ajum.timer = timer
+
+    # (3) 'From' header
+    if is_from:
+        ajum.headers['From'] = is_from
+
+    # (4) User agent
+    if user_agent:
+        ajum.headers['User-Agent'] = user_agent
+
     # Assign verbose mode
-    ctx.obj['verbose'] = verbose
+    ctx.obj['ajum'] = ajum
 
 
 @cli.command()
+@click.pass_context
 @click.option('-f', '--force', is_flag=True, help='Force cache reload.')
 @click.option('-a', '--all', is_flag=True, help='Include all reviews.')
-def backup(force: bool, all: bool) -> None:
+def backup(ctx, force: bool, all: bool) -> None:
     """
     Backs up remote database
     """
 
-    # Initialize object
-    ajum = Ajum()
-
     # Create backup
-    ajum.backup_db(force, all)
+    ctx.obj['ajum'].backup_db(force, all)
 
 
-if __name__ == '__main__':
-    cli()
-
-
-
-def task_build_index():
+@cli.command()
+def index() -> None:
     """
-    Builds index of reviews per ISBN
+    Indexes reviews per ISBN
     """
 
-    def build_index():
-        # Initialize object
-        ajum = init()
-
-        # Build index
-        ajum.build_index()
-
-    return {
-        'actions': [build_index],
-    }
+    # Indexes reviews
+    ctx.obj['ajum'].build_index()
 
 
-def task_build_db():
+@cli.command()
+@click.pass_context
+def build(ctx) -> None:
     """
     Builds local database
     """
 
-    def build_db():
-        # Initialize object
-        ajum = init()
-
-        # Build database
-        ajum.build_db()
-
-    return {
-        'actions': [build_db],
-    }
+    # Build database
+    ctx.obj['ajum'].build_db()
 
 
-def task_clear_cache():
+@cli.command()
+@click.pass_context
+def clear(ctx) -> None:
     """
-    Removes cached index files
+    Removes cached files
     """
 
-    def clear_cache():
-        # Initialize object
-        ajum = init()
-
-        # Build database
-        ajum.clear_cache()
-
-    return {
-        'actions': [clear_cache],
-    }
+    # Flush cache
+    ctx.obj['ajum'].clear_cache()
 
 
-def task_fetch():
+
+@cli.command()
+@click.pass_context
+@click.argument('review')
+def show(ctx, review: str) -> None:
     """
-    Fetches review data from remote database
+    Shows data of given REVIEW
     """
 
-    def fetch():
-        # Initialize object
-        ajum = init()
+    # Fetch review
+    data = ctx.obj['ajum'].get_review(review)
 
-        # Determine review ID
-        data = ajum.get_review(get_var('id', ''))
+    # If review exists ..
+    if data:
+        # .. print its data
+        for key, value in data.items():
+            click.echo('{}: {}'.format(key, value))
 
-        # If review for given ID exists ..
-        if data:
-            # .. print its data
-            for key, value in data.items():
-                print('{}: {}'.format(key, value))
-
-        else:
-            print('No review found for given ID, please try again.')
-
-    return {
-        'actions': [fetch],
-    }
+    else:
+        click.echo('No review found for given ID, please try again.')
 
 
-def task_query():
+@cli.command()
+@click.pass_context
+@click.option('-s', '--search-term', default='', help='Force cache reload.')
+@click.option('-t', '--title', default='', help='Include all reviews.')
+@click.option('-f', '--first-name', default='', help='Include all reviews.')
+@click.option('-l', '--last-name', default='', help='Include all reviews.')
+@click.option('-l', '--last-name', default='', help='Include all reviews.')
+@click.option('-i', '--illustrator', default='', help='Include all reviews.')
+@click.option('-a', '--all-reviews', is_flag=True, help='Include all reviews.')
+@click.option('-w', '--wolgast', is_flag=True, help='Include all reviews.')
+def query(ctx, search_term: str, title: str, first_name: str, last_name: str, illustrator: str, all_reviews: bool, wolgast: bool) -> None:
     """
     Queries remote database
     """
 
-    def show_next(text: str = 'Continue? '):
-        # Confirm to continue
-        return input(text) in [
-            '',
-            'y', 'yes', 'yo', 'yep', 'sure',
-            'j', 'ja', 'jo', 'jepp', 'klar',
-        ]
+    # Query database
+    reviews = ctx.obj['ajum'].query(
+        search_term=search_term,
+        title=title,
+        first_name=first_name,
+        last_name=last_name,
+        illustrator=illustrator,
+        archive=all_reviews,
+        wolgast=wolgast
+    )
 
-
-    def query():
-        # Initialize object
-        ajum = init()
-
-        # Query database
-        reviews = ajum.query(
-            search_term=get_var('search_term', ''),
-            title=get_var('title', ''),
-            first_name=get_var('first_name', ''),
-            last_name=get_var('last_name', ''),
-            illustrator=get_var('illustrator', ''),
-            archive=get_var('archive', 'False') == 'True',
-            wolgast=get_var('wolgast', 'False') == 'True'
-        )
-
+    if reviews:
         # Count reviews
         count = len(reviews)
 
-        if count > 0:
-            print('We found {} reviews.'.format(str(count)))
+        click.echo('We found {} reviews.'.format(count))
 
-            # If confirmed ..
-            if show_next('Show results? '):
-                # .. loop over reviews ..
-                for i, review in enumerate(reviews):
-                    # Increase by one for human-readable numbering
-                    i += 1
+        # If confirmed ..
+        if click.confirm('Show results?'):
+            # .. loop over reviews ..
+            for i, review in enumerate(reviews):
+                # Increase by one for human-readable numbering
+                i += 1
 
-                    # Let user know where we are
-                    print('Review {} of {}:'.format(str(i), str(count)))
+                # Let user know where we are
+                click.echo('Review {} of {}:'.format(str(i), count))
 
-                    # Print review data
-                    for key, value in ajum.get_review(review).items():
-                        print('{}: {}'.format(key, value))
+                # Print review data
+                for key, value in ajum.get_review(review).items():
+                    click.echo('{}: {}'.format(key, value))
 
-                    # Add newline for improved spacing
-                    print('\n')
+                # Add newline for improved spacing
+                click.echo('\n')
 
-                    # Always remember this: If told to ..
-                    if not show_next():
-                        # .. stop!
-                        break
+                # Exit script upon last entry
+                if i == count:
+                    click.echo('No more entries, exiting ..')
 
-        else:
-            print('Your query did not match any review, please try again.')
+                    # Goodbye!
+                    break
 
-    return {
-        'actions': [query],
-    }
+                # Always remember this: If told to ..
+                if not click.confirm('Continue?'):
+                    # .. stop!
+                    break
+
+    else:
+        click.echo('Your query did not match any review, please try again.')
 
 #
 # TASKS (END)
 ###
+
+
+if __name__ == '__main__':
+    cli()
