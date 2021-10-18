@@ -3,6 +3,8 @@
 
 This small library is a Python wrapper for [ajum.de](https://www.ajum.de/index.php?s=datenbank), querying the book review database of the german working group for children's and youth literature and media ("Arbeitsgemeinschaft Jugendliteratur und Medien" or "AJuM"), which is part of the german Education and Science Worker's Union ("Gewerkschaft Erziehung und Wissenschaft" or "GEW"). Their work is invaluable for kindergartens, (pre)schools, universities and other educational institution. We are thankful for AJuM's commitment and want to give something back by spreading the word and provide an easy way to interact with their API.
 
+**Note:** We DO NOT want to disrupt their services in any way, so by default the responsible function `sleep()`s for three seconds after each API call.
+
 
 ## Getting started
 
