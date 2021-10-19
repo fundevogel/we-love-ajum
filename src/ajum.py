@@ -213,14 +213,19 @@ class Ajum():
                     data[term] = separator.join(texts).strip()
 
             # Make adjustments
-            # (1) Attempt to ..
+            # (1) If field 'ISBN' is present ..
+            if 'ISBN' in data:
+                # .. remove whitespaces inside
+                data['ISBN'] = data['ISBN'].replace(' ', '')
+
+            # (2) If field 'author' is present ..
             if 'Autor' in data:
-                # .. remove trailing comma from author
+                # .. remove trailing comma
                 data['Autor'] = data['Autor'].rstrip(',')
 
-            # (2) Since it has no label ..
+            # (3) Since field 'binding' has no label ..
             if tag.text.strip() == 'Preis:':
-                # .. build binding manually
+                # .. build it manually
                 data['Einband'] = tag.find_next_sibling('td').find_next_sibling('td').find_next_sibling('td').text.strip()
 
         return data
