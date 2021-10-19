@@ -355,3 +355,38 @@ def init(obj) -> Ajum:
         ajum.headers['User-Agent'] = obj['user_agent']
 
     return ajum
+
+
+@cli.command()
+@click.pass_context
+def stats(ctx) -> None:
+    """
+    Shows statistics
+    """
+
+    # Initialize object
+    ajum = init(ctx.obj)
+
+    # Count cached reviews
+    review_count = len(glob.glob(ajum.cache_dir + '/*.html'))
+
+    # Report it
+    click.echo('Currently {} reviews in cache.'.format(review_count))
+
+    # If index file exists ..
+    if os.path.exists(ajum.index_file):
+        # .. count ISBNs
+        index = load_json(ajum.index_file)
+        index_count = len(index.keys())
+
+        # Report it
+        click.echo('Currently {} ISBNs indexed.'.format(index_count))
+
+        # Import 'statistics' library
+        import statistics
+
+        # Report average & median reviews per ISBN
+        average = review_count / index_count
+        median = int(statistics.median(sorted([len(value) for value in index.values()])))
+
+        click.echo('.. averaging {:.2f} reviews per ISBN & a median of {}.'.format(average, median))
