@@ -223,7 +223,11 @@ class Ajum():
                 # .. remove trailing comma
                 data['Autor'] = data['Autor'].rstrip(',')
 
-            # (3) Since field 'binding' has no label ..
+            # (3) If field 'Reihe' is present ..
+            if 'Reihe' in data:
+                data['Reihe'] = data['Reihe'].replace(u'\u000b', '. ')
+
+            # (4) Since field 'binding' has no label ..
             if tag.text.strip() == 'Preis:':
                 # .. build it manually
                 data['Einband'] = tag.find_next_sibling('td').find_next_sibling('td').find_next_sibling('td').text.strip()
