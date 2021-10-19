@@ -33,6 +33,7 @@ setuptools.setup(
     install_requires=[
         'bs4',
         'click',
+        'isbnlib',
         'requests',
     ],
     python_requires='>=3.6',

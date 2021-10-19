@@ -55,7 +55,9 @@ Commands:
 
 For everything else, check out the `--help` command, like this: `ajum backup --help` .. or have a look at `src/ajum.py` - feedback appreciated, as always!
 
-**Note:** As downloading reviews *just* to build an index file means making A LOT of requests, we included `index.json`, which contains references for all ISBNs being reviewed, with a total of 8766 currently available reviews - so if you need reviews for a known ISBN, get *only* what you need simply like so:
+**Note:** As downloading reviews *just* to build an index file means making A LOT of requests, we included `index.json`. It was created using `strict` mode (which means that invalid ISBNs were skipped) and contains all review IDs per ISBN (with a total of 8766 so far).
+
+If you need reviews for any given ISBN, get *only* what you need simply like so:
 
 ```bash
 $ ajum show YOUR_ID

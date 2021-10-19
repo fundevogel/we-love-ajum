@@ -1,6 +1,8 @@
 import os
+import glob
 
 import click
+import isbnlib
 
 from .ajum import Ajum
 from .helpers import dump_json, load_json
@@ -114,7 +116,8 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
 
 @cli.command()
 @click.pass_context
-def index(ctx) -> None:
+@click.option('-s', '--strict', is_flag=True, help='Whether to skip invalid ISBNs.')
+def index(ctx, strict: bool) -> None:
     """
     Indexes reviews per ISBN
     """
@@ -131,17 +134,32 @@ def index(ctx) -> None:
         # Get review ID from filename
         review = ajum.file2id(html_file)
 
-        # Determine ISBN
-        # (1) Load review data
+        # Load review data
         data = ajum.get_review(review)
 
-        # (2) Check if ISBN is present ..
+        # If field 'ISBN' is empty ..
         if 'ISBN' not in data:
-            # .. otherwise we got a problem
+            # .. we got a problem
             continue
 
-        # (3) Assign reviewed ISBN
+        # Assign reviewed ISBN
         isbn = data['ISBN']
+
+        # If 'strict' mode is enabled ..
+        if strict:
+            # (1) .. check if ISBN valid ..
+            if isbnlib.notisbn(isbn):
+                if ctx.obj['verbose'] > 0: click.echo('Skipping invalid ISBN {} ..'.format(isbn))
+
+                # .. otherwise skip it
+                continue
+
+            # (2) .. ensure hyphenated notation
+            # See https://github.com/xlcnd/isbnlib/issues/86
+            if isbnlib.mask(isbn):
+                isbn = isbnlib.mask(isbn)
+
+            if ctx.obj['verbose'] > 0: click.echo('Adding review for {} ..'.format(isbn))
 
         # Create record (if not present)
         if isbn not in index:
@@ -170,7 +188,7 @@ def build(ctx) -> None:
 
     # Ensure that index file exists
     if not os.path.exists(ajum.index_file):
-        raise
+        return False
 
     # Prepare database store
     data = {}
@@ -186,7 +204,7 @@ def build(ctx) -> None:
             # If not cached yet ..
             if not os.path.exists(html_file):
                 # .. we got a problem
-                raise
+                continue
 
             # Load review HTML
             with open(html_file, 'r') as file:
