@@ -16,7 +16,7 @@ class Ajum():
     """
 
     # Database directory
-    db_path = '.db'
+    cache_dir = '.db'
 
 
     # Request headers
@@ -59,7 +59,7 @@ class Ajum():
 
 
     def id2file(self, review: str) -> str:
-        return '{}/{}.html'.format(self.db_path, review)
+        return '{}/{}.html'.format(self.cache_dir, review)
 
 
     def file2id(self, html_file: str) -> str:
@@ -104,20 +104,13 @@ class Ajum():
         return list(reviews)
 
 
-    def get_review_ids(self, params: dict, force: bool = False) -> list:
+    def get_review_ids(self, params: dict) -> list:
         """
         Collect results pages for given query & extract their review IDs
         """
 
-        # If 'force' mode is activated ..
-        if force:
-            # .. clear exisiting cache first
-            self.clear_cache()
-
         # Send request
-        self.timer = 0
         html = self.call_api(params)
-        self.timer = 3
 
         # Check number of results
         matches = re.findall(r'wurden\s(\d+)\sRezensionen', html)
@@ -136,7 +129,7 @@ class Ajum():
             params['start'] = str(i * 50)
 
             # Determine JSON file
-            json_file = '{}/{}.json'.format(self.db_path, dict2hash(params))
+            json_file = '{}/{}.json'.format(self.cache_dir, dict2hash(params))
 
             # If not cached yet ..
             if not os.path.exists(json_file):
@@ -603,90 +596,18 @@ class Ajum():
 
     # LOCAL DATABASE BACKUP
 
-    def backup_db(self, force: bool = False, include_archive: bool = False) -> None:
-        """
-        Backs up remote database
-        """
-
-        # If 'force' mode is activated ..
-        if force:
-            # .. clear exisiting cache first
-            self.clear_cache()
-
-        params = {
-            'start': '0',
-            'do': 'suchen',
-            'bewertung': '0',
-            'titel': '',
-            'autor1': '',
-            'autor2': '',
-            'illustrator': '',
-            'suchtext': '',
-            'alter': '0',
-            'einsatz': '0',
-            'schlagwort': '0',
-            'gattung': '0',
-            'medienart': '0',
-            'wolgast': '',
-            'archiv': 'JA' if include_archive else '',
-        }
-
-        # Load review IDs
-        reviews = self.get_review_ids(params)
-
-        # Loop over review pages ..
-        for review in set(reviews):
-            # .. caching each review
-            self.fetch_review(review)
-
-
     def clear_cache(self) -> None:
         """
         Removes cached index files
         """
 
         # Loop over JSON files ..
-        for file in glob.glob(self.db_path + '/*.json'):
+        for file in glob.glob(self.cache_dir + '/*.json'):
             # .. deleting each on of them
             os.remove(file)
 
 
     # INDEX SEARCH
-
-    def build_index(self) -> None:
-        """
-        Builds index of reviews per ISBN
-        """
-
-        # Prepare index storage
-        index = {}
-
-        for html_file in glob.glob(self.db_path + '/*.html'):
-            # Get review ID from filename
-            review = self.file2id(html_file)
-
-            # Determine ISBN
-            # (1) Load review data
-            data = self.get_review(review)
-
-            # (2) Check if ISBN is present ..
-            if 'ISBN' not in data:
-                # .. otherwise we got a problem
-                continue
-
-            # (3) Assign reviewed ISBN
-            isbn = data['ISBN']
-
-            # Create record (if not present)
-            if isbn not in index:
-                index[isbn] = []
-
-            # Add review to ISBN
-            index[isbn].append(review)
-
-        # Create index file
-        dump_json(dict(sorted(index.items())), self.index_file)
-
 
     def isbn2reviews(self, isbn) -> dict:
         """
@@ -704,41 +625,3 @@ class Ajum():
             return {}
 
         return self.get_reviews(index[isbn])
-
-
-    # LOCAL DATABASE
-
-    def build_db(self) -> None:
-        """
-        Builds local database
-        """
-
-        # Ensure that index file exists
-        if not os.path.exists(self.index_file):
-            raise
-
-        # Prepare database store
-        data = {}
-
-        for isbn, reviews in load_json(self.index_file).items():
-            # Create record
-            data[isbn] = {}
-
-            for review in reviews:
-                # Define HTML file for review page
-                html_file = self.id2file(review)
-
-                # If not cached yet ..
-                if not os.path.exists(html_file):
-                    # .. we got a problem
-                    raise
-
-                # Load review HTML
-                with open(html_file, 'r') as file:
-                    html = file.read()
-
-                # Extract data & store it
-                data[isbn][review] = self.extract_review(html)
-
-        # Create database file
-        dump_json(data, self.db_file)
