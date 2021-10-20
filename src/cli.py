@@ -101,6 +101,62 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
         # Check if review was cached before
         html_file = ajum.id2file(review)
 
+        if not re.match(r'\d+', review):
+            # .. report it
+            click.echo('Invalid review ID "{}", exiting ..'.format(review))
+
+        # If not ..
+        if not os.path.exists(html_file):
+            # (1) .. report it
+            if ctx.obj['verbose'] > 0: click.echo('Fetching {} ..'.format(html_file))
+
+            # (2) .. cache it
+            ajum.fetch_review(review)
+
+
+@cli.command()
+@click.pass_context
+@click.option('-f', '--force', is_flag=True, help='Force cache reload.')
+@click.option('-l', '--limit', default=50, type=int, help='Limit of reviews.')
+def update(ctx, force: bool) -> None:
+    """
+    Updates local database
+    """
+
+    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
+
+    # Initialize object
+    ajum = init(ctx.obj)
+
+    # If 'force' mode is activated ..
+    if force:
+        if ctx.obj['verbose'] > 1: click.echo('Clearing cache ..')
+
+        # .. clear exisiting cache first
+        ajum.clear_cache()
+
+    if ctx.obj['verbose'] > 1: click.echo('Fetching review IDs from remote database ..')
+
+    # .. make requests to get them
+    # TODO: Since 'limit' shows ALL results on EVERY results page (strangely up to 12526),
+    # this could be done in one request, but this would easily mislead people to increase
+    # limits until reaching the server's maximum RAM so it's discouraged
+    reviews = ajum.get_results({
+        'do': 'suchen',
+        'start': '0',
+        'show': 'last',
+        'limit': limit,
+    })
+
+    # Loop over review IDs
+    for review in set(reviews):
+        # Check if review was cached before
+        html_file = ajum.id2file(review)
+
+        if not re.match(r'\d+', review):
+            # .. report it
+            click.echo('Invalid review ID "{}", exiting ..'.format(review))
+
         # If not ..
         if not os.path.exists(html_file):
             # (1) .. report it
