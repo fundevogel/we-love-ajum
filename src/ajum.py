@@ -88,17 +88,25 @@ class Ajum():
             # Parse their URL & extract query parameters
             query = urllib.parse.parse_qs(urllib.parse.urlparse(link['href']).query)
 
-            # If URL links to review ..
+            # Check for review ID in link
             if 'id' in query:
-                # (1) .. assign review identifier
+                # Assign review identifier
                 review = query['id'][0]
 
-                # (2) .. redirect invalid requests ..
+                # Replace invalid requests ..
                 if review in redirects:
                     # .. with valid ones
                     review = redirects[review]
 
-                # (3) .. store review ID
+                # If review ID is somehow shady ..
+                if not re.match(r'\d+', review):
+                    # .. report it
+                    click.echo('Invalid review ID "{}", exiting ..'.format(review))
+
+                    # .. abort execution
+                    click.Context.abort()
+
+                # Store review ID
                 reviews.add(review)
 
         return list(reviews)
