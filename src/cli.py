@@ -272,22 +272,6 @@ def build(ctx, index_file: str, db_file: str) -> None:
 
 @cli.command()
 @click.pass_context
-def clear(ctx) -> None:
-    """
-    Removes cached files
-    """
-
-    # Initialize object
-    ajum = init(ctx.obj)
-
-    if ctx.obj['verbose'] > 1: click.echo('Flushing cache ..')
-
-    # Flush cache
-    ajum.clear_cache()
-
-
-@cli.command()
-@click.pass_context
 @click.argument('review')
 def show(ctx, review: str) -> None:
     """
@@ -382,30 +366,20 @@ def query(ctx, search_term: str, title: str, first_name: str, last_name: str, il
         click.echo('Your query did not match any review, please try again.')
 
 
-def init(obj) -> Ajum:
+@cli.command()
+@click.pass_context
+def clear(ctx) -> None:
     """
-    Initializes "AJuM" instance from given context object
+    Removes cached files
     """
 
     # Initialize object
-    ajum = Ajum()
+    ajum = init(ctx.obj)
 
-    # Configure options
-    # (1) Cache directory
-    ajum.cache_dir = obj['cache_dir']
+    if ctx.obj['verbose'] > 1: click.echo('Flushing cache ..')
 
-    # (2) Waiting time after each request
-    ajum.timer = obj['timer']
-
-    # (3) 'From' header
-    if 'is_from' in obj:
-        ajum.headers['From'] = obj['is_from']
-
-    # (4) User agent
-    if 'user_agent' in obj:
-        ajum.headers['User-Agent'] = obj['user_agent']
-
-    return ajum
+    # Flush cache
+    ajum.clear_cache()
 
 
 @cli.command()
@@ -442,3 +416,29 @@ def stats(ctx, index_file: str) -> None:
         median = int(statistics.median(sorted([len(value) for value in index.values()])))
 
         click.echo('.. averaging {:.2f} reviews per ISBN & a median of {}.'.format(average, median))
+
+
+def init(obj) -> Ajum:
+    """
+    Initializes "AJuM" instance from given context object
+    """
+
+    # Initialize object
+    ajum = Ajum()
+
+    # Configure options
+    # (1) Cache directory
+    ajum.cache_dir = obj['cache_dir']
+
+    # (2) Waiting time after each request
+    ajum.timer = obj['timer']
+
+    # (3) 'From' header
+    if 'is_from' in obj:
+        ajum.headers['From'] = obj['is_from']
+
+    # (4) User agent
+    if 'user_agent' in obj:
+        ajum.headers['User-Agent'] = obj['user_agent']
+
+    return ajum
