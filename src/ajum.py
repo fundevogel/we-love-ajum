@@ -30,11 +30,6 @@ class Ajum():
     timer = 3.0
 
 
-    def __init__(self, index_file: str = 'index.json', db_file: str = 'database.json'):
-        self.db_file = db_file
-        self.index_file = index_file
-
-
     # GENERAL
 
     def call_api(self, params: dict = {}, headers: dict = {}) -> str:
@@ -66,15 +61,34 @@ class Ajum():
         return os.path.splitext(os.path.basename(html_file))[0]
 
 
-    def max_pages(self, total: str) -> int:
-        return (int(total) // 50) + 1
+    def hash2file(self, params: dict) -> str:
+        return '{}/{}.json'.format(self.cache_dir, dict2hash(params))
 
 
-    # RESULTS PAGE
+    # RESULTS PAGES
 
-    def extract_review_ids(self, html: str) -> list:
+    def fetch_results(self, params: dict) -> bool:
         """
-        Extracts review IDs from results page HTML
+        Fetches results page for a given query & caches its review IDs
+        """
+
+        # Determine JSON file
+        json_file = self.hash2file(params)
+
+        # If not cached yet ..
+        if not os.path.exists(json_file):
+            # .. send request
+            html = self.call_api(params)
+
+            # .. extract review IDs & store them
+            dump_json(self.extract_results(html), json_file)
+
+        return os.path.exists(json_file)
+
+
+    def extract_results(self, html: str) -> list:
+        """
+        Extracts review IDs from a single results page
         """
 
         # Load redirects for ill-conceived review links
@@ -112,9 +126,15 @@ class Ajum():
         return list(reviews)
 
 
-    def get_review_ids(self, params: dict) -> list:
+    ##
+    # Meta class, combining ..
+    #
+    # - `fetch_results`   - Fetches results page for a given query & caches its review IDs
+    # - `extract_results` - Extracts review IDs from a single results page
+    ##
+    def get_results(self, params: dict) -> list:
         """
-        Collect results pages for given query & extract their review IDs
+        Collects review IDs of all results pages for a given query
         """
 
         # Send request
@@ -127,24 +147,29 @@ class Ajum():
         if not matches:
             return []
 
-        # Extract review IDs from ..
-        # (1) .. initial results page (first 50 reviews)
-        reviews = self.extract_review_ids(html)
+        if not self.fetch_results(params):
+            return []
 
-        # (2) .. subsequent result pages
-        for i in range(1, self.max_pages(matches[0])):
+        # Create data file array
+        json_files = []
+
+        # Iterate over subsequent results pages
+        for i in range(1, (int(matches[0]) // 50) + 1):
             # Set starting point
             params['start'] = str(i * 50)
 
-            # Determine JSON file
-            json_file = '{}/{}.json'.format(self.cache_dir, dict2hash(params))
+            # If successfully fetching a results page & storing its review IDs ..
+            if self.fetch_results(params):
+                # .. add its JSON file representation
+                json_files.append(self.hash2file(params))
 
-            # If not cached yet ..
-            if not os.path.exists(json_file):
-                # .. fetch review IDs & store them
-                dump_json(self.extract_review_ids(self.call_api(params)), json_file)
+        # Load review IDs of ..
+        # (1) .. initial results page (first 50 reviews)
+        reviews = self.extract_results(html)
 
-            # Load review IDs
+        # (2) .. subsequent result pages ..
+        for json_file in json_files:
+            # .. adding their review IDs
             reviews.extend(load_json(json_file))
 
         return reviews
@@ -173,7 +198,7 @@ class Ajum():
             with open(html_file, 'w') as file:
                 file.write(html)
 
-        return True
+        return os.path.exists(html_file)
 
 
     def extract_review(self, html: str) -> dict:
@@ -251,7 +276,7 @@ class Ajum():
     ##
     def get_review(self, review: str) -> dict:
         """
-        Grabs data for single review
+        Collects single review data for given review ID
         """
 
         if not self.fetch_review(review):
@@ -608,7 +633,7 @@ class Ajum():
         reviews = self.get_review_ids(params)
 
         # Extract data for each review
-        return self.get_reviews(reviews)
+        return self.get_results(reviews)
 
 
     # LOCAL DATABASE BACKUP
@@ -622,23 +647,3 @@ class Ajum():
         for file in glob.glob(self.cache_dir + '/*.json'):
             # .. deleting each on of them
             os.remove(file)
-
-
-    # INDEX SEARCH
-
-    def isbn2reviews(self, isbn) -> dict:
-        """
-        Grabs review(s) for given ISBN
-        """
-
-        # Ensure that index file exists
-        if not os.path.exists(self.index_file):
-            raise
-
-        # Load index
-        index = load_json(self.index_file)
-
-        if isbn not in index:
-            return {}
-
-        return self.get_reviews(index[isbn])

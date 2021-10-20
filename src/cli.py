@@ -1,4 +1,5 @@
 import os
+import re
 import glob
 
 import click
@@ -10,15 +11,12 @@ from .helpers import dump_json, load_json
 
 @click.group()
 @click.pass_context
-@click.option('-i', '--index-file', default='index.json', type=click.Path(False), help='Index file.')
-@click.option('-d', '--db-file', default='database.json', type=click.Path(False), help='Database file.')
-@click.option('-c', '--cache-dir', default='.db', type=click.Path(False), help='Cache directory.')
 @click.option('-t', '--timer', default=5.0, type=float, help='Waiting time after each request.')
 @click.option('-f', '--is_from', help='"From" header.')
 @click.option('-u', '--user-agent', help='User agent.')
 @click.option('-v', '--verbose', count=True, help='Enable verbose mode.')
 @click.version_option('0.6.0')
-def cli(ctx, index_file: str, db_file: str, cache_dir: str, timer: float, is_from: str, user_agent: str, verbose: int) -> None:
+def cli(ctx, timer: float, is_from: str, user_agent: str, verbose: int) -> None:
     """
     Tools for interacting with the 'AJuM' database.
     """
@@ -29,9 +27,7 @@ def cli(ctx, index_file: str, db_file: str, cache_dir: str, timer: float, is_fro
     # Initialize context object
     # (1) Defaults
     ctx.obj = {
-        'index_file': index_file,
-        'db_file': db_file,
-        'cache_dir': cache_dir,
+        'cache_dir': click.get_app_dir('ajum'),
         'timer': timer,
     }
 
@@ -85,7 +81,7 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
                 html = file.read()
 
             # (2) .. extract review IDs & store them
-            dump_json(ajum.extract_review_ids(html), json_file)
+            dump_json(ajum.extract_results(html), json_file)
 
         reviews = load_json(json_file)
 
@@ -94,7 +90,7 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
         if ctx.obj['verbose'] > 1: click.echo('Fetching review IDs from remote database ..')
 
         # .. make requests to get them
-        reviews = ajum.get_review_ids({
+        reviews = ajum.get_results({
             'start': '0',
             'do': 'suchen',
             'archiv': 'JA' if archived else '',
@@ -116,10 +112,11 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
 
 @cli.command()
 @click.pass_context
+@click.argument('index-file', default='index.json', type=click.Path(False))
 @click.option('-s', '--strict', is_flag=True, help='Whether to skip invalid ISBNs.')
-def index(ctx, strict: bool) -> None:
+def index(ctx, index_file: str, strict: bool) -> None:
     """
-    Indexes reviews per ISBN
+    Exports index of reviews per ISBN to INDEX_FILE
     """
 
     if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
@@ -159,7 +156,7 @@ def index(ctx, strict: bool) -> None:
             if isbnlib.mask(isbn):
                 isbn = isbnlib.mask(isbn)
 
-            if ctx.obj['verbose'] > 0: click.echo('Adding review for {} ..'.format(isbn))
+        if ctx.obj['verbose'] > 0: click.echo('Adding review for {} ..'.format(isbn))
 
         # Create record (if not present)
         if isbn not in index:
@@ -168,17 +165,19 @@ def index(ctx, strict: bool) -> None:
         # Add review to ISBN
         index[isbn].append(review)
 
-    if ctx.obj['verbose'] > 1: click.echo('Creating index file {} ..'.format(ajum.index_file))
+    if ctx.obj['verbose'] > 1: click.echo('Creating index file {} ..'.format(index_file))
 
     # Create index file
-    dump_json(dict(sorted(index.items())), ajum.index_file)
+    dump_json(dict(sorted(index.items())), index_file)
 
 
 @cli.command()
+@click.argument('index-file', default='index.json', type=click.Path(True))
+@click.argument('db-file', default='database.json', type=click.Path(False))
 @click.pass_context
-def build(ctx) -> None:
+def build(ctx, index_file: str, db_file: str) -> None:
     """
-    Builds local database
+    Builds local database DB_FILE from INDEX_FILE
     """
 
     if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
@@ -186,14 +185,10 @@ def build(ctx) -> None:
     # Initialize object
     ajum = init(ctx.obj)
 
-    # Ensure that index file exists
-    if not os.path.exists(ajum.index_file):
-        return False
-
     # Prepare database store
     data = {}
 
-    for isbn, reviews in load_json(ajum.index_file).items():
+    for isbn, reviews in load_json(index_file).items():
         # Create record
         data[isbn] = {}
 
@@ -213,10 +208,10 @@ def build(ctx) -> None:
             # Extract data & store it
             data[isbn][review] = ajum.extract_review(html)
 
-    if ctx.obj['verbose'] > 1: click.echo('Creating database file {} ..'.format(ajum.db_file))
+    if ctx.obj['verbose'] > 1: click.echo('Creating database file {} ..'.format(db_file))
 
     # Create database file
-    dump_json(data, ajum.db_file)
+    dump_json(data, db_file)
 
 
 @cli.command()
@@ -337,7 +332,7 @@ def init(obj) -> Ajum:
     """
 
     # Initialize object
-    ajum = Ajum(obj['index_file'], obj['db_file'])
+    ajum = Ajum()
 
     # Configure options
     # (1) Cache directory
@@ -359,7 +354,8 @@ def init(obj) -> Ajum:
 
 @cli.command()
 @click.pass_context
-def stats(ctx) -> None:
+@click.option('-i', '--index-file', default='index.json', type=click.Path(False), help='Index file.')
+def stats(ctx, index_file: str) -> None:
     """
     Shows statistics
     """
@@ -374,9 +370,9 @@ def stats(ctx) -> None:
     click.echo('Currently {} reviews in cache.'.format(review_count))
 
     # If index file exists ..
-    if os.path.exists(ajum.index_file):
+    if os.path.exists(index_file):
         # .. count ISBNs
-        index = load_json(ajum.index_file)
+        index = load_json(index_file)
         index_count = len(index.keys())
 
         # Report it
