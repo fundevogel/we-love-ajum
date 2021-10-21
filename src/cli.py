@@ -118,7 +118,7 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
 @click.pass_context
 @click.option('-f', '--force', is_flag=True, help='Force cache reload.')
 @click.option('-l', '--limit', default=50, type=int, help='Limit of reviews.')
-def update(ctx, force: bool) -> None:
+def update(ctx, force: bool, limit: int) -> None:
     """
     Updates local database
     """
