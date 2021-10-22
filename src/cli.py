@@ -170,20 +170,24 @@ def update(ctx, force: bool, limit: int) -> None:
 @click.pass_context
 @click.argument('index-file', default='index.json', type=click.Path(False))
 @click.option('-s', '--strict', is_flag=True, help='Whether to skip invalid ISBNs.')
-def index(ctx, index_file: str, strict: bool) -> None:
+@click.option('-j', '--jobs', default=4, type=int, help='Number of threads.')
+def index(ctx, index_file: str, strict: bool, jobs: int) -> None:
     """
     Exports index of reviews per ISBN to INDEX_FILE
     """
+
+    # Import 'multiprocessing' library
+    import multiprocessing
 
     if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
 
     # Initialize object
     ajum = init(ctx.obj)
 
-    # Prepare index storage
-    index = {}
+    # Implement global indexing method
+    global add2index
 
-    for html_file in glob.glob(ajum.cache_dir + '/*.html'):
+    def add2index(html_file, index, lock):
         # Get review ID from filename
         review = ajum.file2id(html_file)
 
@@ -193,7 +197,7 @@ def index(ctx, index_file: str, strict: bool) -> None:
         # If field 'ISBN' is empty ..
         if 'ISBN' not in data:
             # .. we got a problem
-            continue
+            return
 
         # Assign reviewed ISBN
         isbn = data['ISBN']
@@ -205,7 +209,7 @@ def index(ctx, index_file: str, strict: bool) -> None:
                 if ctx.obj['verbose'] > 0: click.echo('Skipping invalid ISBN {} ..'.format(isbn))
 
                 # .. otherwise skip it
-                continue
+                return
 
             # (2) .. ensure hyphenated notation
             # See https://github.com/xlcnd/isbnlib/issues/86
@@ -214,17 +218,47 @@ def index(ctx, index_file: str, strict: bool) -> None:
 
         if ctx.obj['verbose'] > 0: click.echo('Adding review for {} ..'.format(isbn))
 
+        # Acquire lock
+        lock.acquire()
+
         # Create record (if not present)
         if isbn not in index:
             index[isbn] = []
 
         # Add review to ISBN
-        index[isbn].append(review)
+        # See https://stackoverflow.com/a/8644552
+        buffer = index[isbn]
+        buffer.append(review)
+        index[isbn] = buffer
+
+        # Release lock
+        lock.release()
+
+    # Create process pool
+    pool = multiprocessing.Pool(jobs)
+
+    # Initialize manager object
+    manager = multiprocessing.Manager()
+
+    # Prepare index storage
+    isbns = manager.dict()
+
+    # Create lock
+    lock = manager.Lock()
+
+    # Iterate over cached reviews ..
+    for html_file in glob.glob(ajum.cache_dir + '/*.html'):
+        # .. retrieving data using multiple processes
+        pool.apply_async(add2index, args=(html_file, isbns, lock))
+
+    # Combine results
+    pool.close()
+    pool.join()
 
     if ctx.obj['verbose'] > 1: click.echo('Creating index file {} ..'.format(index_file))
 
     # Create index file
-    dump_json(dict(sorted(index.items())), index_file)
+    dump_json(dict(sorted(isbns.items())), 'new-index.json')
 
 
 @cli.command()
