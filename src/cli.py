@@ -264,31 +264,37 @@ def index(ctx, index_file: str, strict: bool, jobs: int) -> None:
 @cli.command()
 @click.argument('index-file', default='index.json', type=click.Path(True))
 @click.argument('db-file', default='database.json', type=click.Path(False))
+@click.option('-j', '--jobs', default=4, type=int, help='Number of threads.')
 @click.pass_context
-def build(ctx, index_file: str, db_file: str) -> None:
+def build(ctx, index_file: str, db_file: str, jobs: int) -> None:
     """
     Builds local database DB_FILE from INDEX_FILE
     """
+
+    # Import 'multiprocessing' library
+    import multiprocessing
 
     if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
 
     # Initialize object
     ajum = init(ctx.obj)
 
-    # Prepare database store
-    data = {}
+    # Implement global indexing method
+    global add2database
 
-    for isbn, reviews in load_json(index_file).items():
-        # Create record
-        data[isbn] = {}
+    def add2database(isbn, reviews, data):
+        # Create data buffer
+        buffer = {}
+
+        if ctx.obj['verbose'] > 0: click.echo('Adding reviews for {} ..'.format(isbn))
 
         for review in reviews:
             # Define HTML file for review page
             html_file = ajum.id2file(review)
 
-            # If not cached yet ..
+            # If not cached (anymore) ..
             if not os.path.exists(html_file):
-                # .. we got a problem
+                # .. skip it
                 continue
 
             # Load review HTML
@@ -296,12 +302,33 @@ def build(ctx, index_file: str, db_file: str) -> None:
                 html = file.read()
 
             # Extract data & store it
-            data[isbn][review] = ajum.extract_review(html)
+            buffer[review] = ajum.extract_review(html)
+
+        # Add reviews to data
+        data[isbn] = buffer
+
+    # Initialize manager object
+    manager = multiprocessing.Manager()
+
+    # Prepare database storage
+    isbns = manager.dict()
+
+    # Create process pool
+    pool = multiprocessing.Pool(jobs)
+
+    # Iterate over indexed ISBNs ..
+    for isbn, reviews in load_json(index_file).items():
+        # .. retrieving data using multiple processes
+        pool.apply_async(add2database, args=(isbn, reviews, isbns))
+
+    # Combine results
+    pool.close()
+    pool.join()
 
     if ctx.obj['verbose'] > 1: click.echo('Creating database file {} ..'.format(db_file))
 
     # Create database file
-    dump_json(data, db_file)
+    dump_json(dict(sorted(isbns.items())), db_file)
 
 
 @cli.command()
