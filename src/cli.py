@@ -1,6 +1,8 @@
 import os
 import re
 import glob
+import statistics
+import multiprocessing
 
 import click
 import isbnlib
@@ -52,8 +54,6 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
     """
     Backs up remote database
     """
-
-    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
 
     # Initialize object
     ajum = init(ctx.obj)
@@ -123,8 +123,6 @@ def update(ctx, force: bool, limit: int) -> None:
     Updates local database
     """
 
-    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
-
     # Initialize object
     ajum = init(ctx.obj)
 
@@ -175,11 +173,6 @@ def index(ctx, index_file: str, strict: bool, jobs: int) -> None:
     """
     Exports index of reviews per ISBN to INDEX_FILE
     """
-
-    # Import 'multiprocessing' library
-    import multiprocessing
-
-    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
 
     # Initialize object
     ajum = init(ctx.obj)
@@ -271,11 +264,6 @@ def build(ctx, index_file: str, db_file: str, jobs: int) -> None:
     Builds local database DB_FILE from INDEX_FILE
     """
 
-    # Import 'multiprocessing' library
-    import multiprocessing
-
-    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
-
     # Initialize object
     ajum = init(ctx.obj)
 
@@ -339,8 +327,6 @@ def show(ctx, review: str) -> None:
     Shows data of given REVIEW
     """
 
-    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
-
     # Initialize object
     ajum = init(ctx.obj)
 
@@ -371,8 +357,6 @@ def query(ctx, search_term: str, title: str, first_name: str, last_name: str, il
     """
     Queries remote database
     """
-
-    if ctx.obj['verbose'] > 1: click.echo('Initializing "AJuM" instance ..')
 
     # Initialize object
     ajum = init(ctx.obj)
@@ -469,14 +453,14 @@ def stats(ctx, index_file: str) -> None:
         # Report it
         click.echo('Currently {} ISBNs indexed.'.format(index_count))
 
-        # Import 'statistics' library
-        import statistics
-
         # Report average & median reviews per ISBN
         average = review_count / index_count
         median = int(statistics.median(sorted([len(value) for value in index.values()])))
 
-        click.echo('.. averaging {:.2f} reviews per ISBN & a median of {}.'.format(average, median))
+        click.echo('--')
+        click.echo('Reviews per ISBN ..')
+        click.echo('.. median of {}'.format(median))
+        click.echo('.. averaging {:.2f}'.format(average))
 
 
 def init(obj) -> Ajum:
