@@ -47,23 +47,15 @@ def cli(ctx, timer: float, is_from: str, user_agent: str, verbose: int) -> None:
 
 @cli.command()
 @click.pass_context
-@click.option('-f', '--force', is_flag=True, help='Force cache reload.')
 @click.option('-a', '--archived', is_flag=True, help='Include all reviews.')
-@click.option('-h', '--html-file', type=click.Path(True), help='Results page as HTML file.')
-def backup(ctx, force: bool, archived: bool, html_file) -> None:
+@click.option('-h', '--html-file', type=click.Path(True), help='HTML results file.')
+def backup(ctx, archived: bool, html_file) -> None:
     """
     Backs up remote database
     """
 
     # Initialize object
     ajum = init(ctx.obj)
-
-    # If 'force' mode is activated ..
-    if force:
-        if ctx.obj['verbose'] > 1: click.echo('Clearing cache ..')
-
-        # .. clear exisiting cache first
-        ajum.clear_cache()
 
     # If HTML results page is provided ..
     if html_file:
@@ -116,9 +108,8 @@ def backup(ctx, force: bool, archived: bool, html_file) -> None:
 
 @cli.command()
 @click.pass_context
-@click.option('-f', '--force', is_flag=True, help='Force cache reload.')
 @click.option('-l', '--limit', default=50, type=int, help='Limit of reviews.')
-def update(ctx, force: bool, limit: int) -> None:
+def update(ctx, limit: int) -> None:
     """
     Updates local database
     """
@@ -126,16 +117,9 @@ def update(ctx, force: bool, limit: int) -> None:
     # Initialize object
     ajum = init(ctx.obj)
 
-    # If 'force' mode is activated ..
-    if force:
-        if ctx.obj['verbose'] > 1: click.echo('Clearing cache ..')
-
-        # .. clear exisiting cache first
-        ajum.clear_cache()
-
     if ctx.obj['verbose'] > 1: click.echo('Fetching review IDs from remote database ..')
 
-    # .. make requests to get them
+    # Make requests to get reviews from results pages
     # TODO: Since 'limit' shows ALL results on EVERY results page (strangely up to 12526),
     # this could be done in one request, but this would easily mislead people to increase
     # limits until reaching the server's maximum RAM so it's discouraged
@@ -251,7 +235,7 @@ def index(ctx, index_file: str, strict: bool, jobs: int) -> None:
     if ctx.obj['verbose'] > 1: click.echo('Creating index file {} ..'.format(index_file))
 
     # Create index file
-    dump_json(dict(sorted(isbns.items())), 'new-index.json')
+    dump_json(dict(sorted(isbns.items())), index_file)
 
 
 @cli.command()
@@ -345,14 +329,13 @@ def show(ctx, review: str) -> None:
 
 @cli.command()
 @click.pass_context
-@click.option('-s', '--search-term', default='', help='Force cache reload.')
-@click.option('-t', '--title', default='', help='Include all reviews.')
-@click.option('-f', '--first-name', default='', help='Include all reviews.')
-@click.option('-l', '--last-name', default='', help='Include all reviews.')
-@click.option('-l', '--last-name', default='', help='Include all reviews.')
-@click.option('-i', '--illustrator', default='', help='Include all reviews.')
+@click.option('-s', '--search-term', default='', help='Search term.')
+@click.option('-t', '--title', default='', help='Book title.')
+@click.option('-f', '--first-name', default='', help='First name of author.')
+@click.option('-l', '--last-name', default='', help='Last name of author.')
+@click.option('-i', '--illustrator', default='', help='Name of illustrator.')
 @click.option('-a', '--all-reviews', is_flag=True, help='Include all reviews.')
-@click.option('-w', '--wolgast', is_flag=True, help='Include all reviews.')
+@click.option('-w', '--wolgast', is_flag=True, help='Include only Wolgast laureates.')
 def query(ctx, search_term: str, title: str, first_name: str, last_name: str, illustrator: str, all_reviews: bool, wolgast: bool) -> None:
     """
     Queries remote database
@@ -442,7 +425,8 @@ def stats(ctx, index_file: str) -> None:
     review_count = len(glob.glob(ajum.cache_dir + '/*.html'))
 
     # Report it
-    click.echo('Currently {} reviews in cache.'.format(review_count))
+    click.echo('There are currently ..')
+    click.echo('.. {} reviews in cache.'.format(review_count))
 
     # If index file exists ..
     if os.path.exists(index_file):
@@ -451,7 +435,7 @@ def stats(ctx, index_file: str) -> None:
         index_count = len(index.keys())
 
         # Report it
-        click.echo('Currently {} ISBNs indexed.'.format(index_count))
+        click.echo('.. {} ISBNs indexed.'.format(index_count))
 
         # Report average & median reviews per ISBN
         average = review_count / index_count
