@@ -438,11 +438,13 @@ def stats(ctx, index_file: str) -> None:
 
     # If index file exists ..
     if os.path.exists(index_file):
-        # .. count ISBNs
+        # .. count indexed ISBNs & reviews
         index = load_json(index_file)
         index_count = len(index.keys())
+        review_count = sum([len(item) for item in index.values()])
 
         # Report it
+        click.echo('.. {} reviews indexed.'.format(review_count))
         click.echo('.. {} ISBNs indexed.'.format(index_count))
 
         # Report average & median reviews per ISBN
