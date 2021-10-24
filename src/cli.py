@@ -17,7 +17,7 @@ from .helpers import dump_json, load_json
 @click.option('-f', '--is_from', help='"From" header.')
 @click.option('-u', '--user-agent', help='User agent.')
 @click.option('-v', '--verbose', count=True, help='Enable verbose mode.')
-@click.version_option('0.7.1')
+@click.version_option('0.7.2')
 def cli(ctx, timer: float, is_from: str, user_agent: str, verbose: int) -> None:
     """
     Tools for interacting with the 'AJuM' database.
