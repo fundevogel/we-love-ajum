@@ -206,68 +206,94 @@ class Ajum():
         Extracts single review data from HTML
         """
 
+        def process(string: str) -> str:
+            # Process string
+            # (1) Remove surrounding whitespaces
+            # (2) Replace unicode characters such as ..
+            # (a) .. 'Index' (used as quotation marks)
+            # (b) .. 'Set Transmit State' (used as quotation marks)
+            # (c) .. 'Next Line' (used as triple dots)
+            # (d) .. 'Cancel character' (used as quotation marks in titles)
+            # (e) .. 'Start of Protected Area' (used as hyphen/endash)
+            return string.strip().replace(u'\u0084', '"').replace(u'\u0093', '"').replace(u'\u0085', '...').replace(u'\u0094', '". ').replace(u'\u0096', '-')
+            # TODO: For using a dictionary/table instead,
+            # see https://stackoverflow.com/a/54451873
+
         # Prepare review data
         data = {}
 
-        for tag in bs(html, 'html.parser').find('td', {'class': 'td_body'}).find_all('td'):
+        # Iterate over HTML elements ..
+        # (1) .. replacing break tags with newline characters for proper text formatting
+        # (2) .. looking for main table (with class `td_body`)
+        # (3) .. looking for form element
+        # (4) .. looking for its sibling table element
+        # (5) .. selecting all data cells in there
+        for tag in bs(html.replace('<br>', '\n'), 'html.parser').find('td', {'class': 'td_body'}).find('form').find_next_sibling('table').find_all('td'):
+            # When reaching maximum number of data records ..
+            if len(data) == 21:
+                # .. abort loop for good
+                break
+
+            # Since label fields always contain colon ..
+            if not ':' in tag.text:
+                # .. no colon means no action
+                continue
+
             # Extract data
             for term in [
-                # Left column
                 'Autor',
                 'Titel',
+                'ISBN',
                 'Übersetzer',
+                'Originalsprache',
                 'Illustrator',
+                'Seitenanzahl',
                 'Verlag',
+                'Gattung',
                 'Reihe',
+                'Jahr',
                 'Preis',
                 'Inhalt',
-                'Wolgast Preis',
+                'Lesealter',
+                'Einsatzmöglichkeiten',
+                'WolgastPreis',
+                'Bewertung',
                 'Schlagwörter',
                 'Anmerkungen',
                 'Beurteilungstext',
-
-                # Right column
-                'ISBN',
-                'Originalsprache',
-                'Seitenanzahl',
-                'Gattung',
-                'Jahr',
-                'Einsatzmöglichkeiten',
-                'Bewertung',
             ]:
-                if tag.text.strip() == term + ':':
+                # If information was extracted before ..
+                if term in data:
+                    # .. skip it
+                    continue
+
+                # Process data
+                if tag.text.replace('\n', '').replace(' ', '') == term + ':':
                     # Prepare text for further processing
-                    texts = [line.strip() for line in re.split('\n', tag.find_next_sibling('td').text)]
+                    texts = [process(line) for line in re.split('\n', tag.find_next_sibling('td').text)]
 
                     # Check if current field contains  running text ..
                     if term in ['Inhalt', 'Anmerkungen', 'Beurteilungstext']:
                         # .. and keep text parts in list
                         data[term] = [text for text in texts if text]
+
                     # .. or is a simple text field
                     else:
                         # Trim whitespaces & combine parts
                         data[term] = ' '.join(texts).strip()
+
+                    # Abort loop for current term
+                    break
 
             # Since field 'binding' has no label ..
             if tag.text.strip() == 'Preis:':
                 # .. build it manually
                 data['Einband'] = tag.find_next_sibling('td').find_next_sibling('td').find_next_sibling('td').text.strip()
 
-        # Make adjustments
-        # (1) If field 'ISBN' is present ..
+        # If field 'ISBN' is present ..
         if 'ISBN' in data:
             # .. remove whitespaces inside
             data['ISBN'] = data['ISBN'].replace(' ', '')
-
-        # (2) If field 'author' is present ..
-        if 'Autor' in data:
-            # .. remove trailing comma
-            data['Autor'] = data['Autor'].rstrip(',')
-
-        # (3) If field 'Reihe' is present ..
-        if 'Reihe' in data:
-            # .. replace line tabulator
-            data['Reihe'] = data['Reihe'].replace(u'\u000b', '. ')
 
         return data
 
