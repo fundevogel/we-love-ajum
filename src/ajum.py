@@ -344,7 +344,6 @@ class Ajum():
             'gattung': '0',
             'archiv': '',
             'wolgast': '',
-            'Submit': 'Suchen',
         }
 
         # Respect 'select' fields
@@ -630,10 +629,10 @@ class Ajum():
             params['archiv'] = 'JA'
 
         # Get review IDs
-        reviews = self.get_review_ids(params)
+        reviews = self.get_results(params)
 
         # Extract data for each review
-        return self.get_results(reviews)
+        return self.get_reviews(reviews)
 
 
     # LOCAL DATABASE BACKUP
