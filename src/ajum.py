@@ -239,31 +239,35 @@ class Ajum():
                     # Prepare text for further processing
                     texts = [line.strip() for line in re.split('\n', tag.find_next_sibling('td').text)]
 
-                    # Determine text separator
-                    separator = '\n' if term in ['Inhalt', 'Anmerkungen', 'Beurteilungstext'] else ' '
+                    # Check if current field contains  running text ..
+                    if term in ['Inhalt', 'Anmerkungen', 'Beurteilungstext']:
+                        # .. and keep text parts in list
+                        data[term] = [text for text in texts if text]
+                    # .. or is a simple text field
+                    else:
+                        # Trim whitespaces & combine parts
+                        data[term] = ' '.join(texts).strip()
 
-                    # Trim whitespaces
-                    data[term] = separator.join(texts).strip()
-
-            # Make adjustments
-            # (1) If field 'ISBN' is present ..
-            if 'ISBN' in data:
-                # .. remove whitespaces inside
-                data['ISBN'] = data['ISBN'].replace(' ', '')
-
-            # (2) If field 'author' is present ..
-            if 'Autor' in data:
-                # .. remove trailing comma
-                data['Autor'] = data['Autor'].rstrip(',')
-
-            # (3) If field 'Reihe' is present ..
-            if 'Reihe' in data:
-                data['Reihe'] = data['Reihe'].replace(u'\u000b', '. ')
-
-            # (4) Since field 'binding' has no label ..
+            # Since field 'binding' has no label ..
             if tag.text.strip() == 'Preis:':
                 # .. build it manually
                 data['Einband'] = tag.find_next_sibling('td').find_next_sibling('td').find_next_sibling('td').text.strip()
+
+        # Make adjustments
+        # (1) If field 'ISBN' is present ..
+        if 'ISBN' in data:
+            # .. remove whitespaces inside
+            data['ISBN'] = data['ISBN'].replace(' ', '')
+
+        # (2) If field 'author' is present ..
+        if 'Autor' in data:
+            # .. remove trailing comma
+            data['Autor'] = data['Autor'].rstrip(',')
+
+        # (3) If field 'Reihe' is present ..
+        if 'Reihe' in data:
+            # .. replace line tabulator
+            data['Reihe'] = data['Reihe'].replace(u'\u000b', '. ')
 
         return data
 
