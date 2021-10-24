@@ -403,7 +403,7 @@ def query(ctx, search_term: str, title: str, first_name: str, last_name: str, il
 @click.pass_context
 def clear(ctx) -> None:
     """
-    Removes cached files
+    Removes cached results files
     """
 
     # Initialize object
