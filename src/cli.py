@@ -102,6 +102,9 @@ def backup(ctx, archived: bool, html_file) -> None:
             # .. report it
             click.echo('Invalid review ID "{}", exiting ..'.format(review))
 
+            # .. exit
+            click.Context.abort()
+
         # If not ..
         if not os.path.exists(html_file):
             # (1) .. report it
