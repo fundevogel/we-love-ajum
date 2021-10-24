@@ -85,6 +85,11 @@ def backup(ctx, archived: bool, html_file) -> None:
         reviews = ajum.get_results({
             'start': '0',
             'do': 'suchen',
+            'bewertung': '0',
+            'einsatz': '0',
+            'medienart': '0',
+            'alter': '0',
+            'gattung': '0',
             'archiv': 'JA' if archived else '',
         })
 
