@@ -5,7 +5,7 @@ This small library is a Python wrapper for [ajum.de](https://www.ajum.de/index.p
 
 We deem their work to be invaluable for kindergartens, (pre)schools, universities and other educational institutions. We are thankful for AJuM's commitment and want to give something back by spreading the word and provide an easy way to interact with their review database.
 
-**Note:** We DO NOT want to disrupt their services in any way, so by default the responsible function `sleep()`s for three seconds after each API call. Furthermore, as downloading reviews *just* to build an index file means making A LOT of requests, we included `index.json`. It was created using `strict` mode (which means that invalid ISBNs were skipped) and contains all review IDs per ISBN (with a total of 8766 so far).
+**Note:** We DO NOT want to disrupt their services in any way, so by default the responsible function `sleep()`s for three seconds after each API call. Furthermore, as downloading reviews *just* to build an index file means making A LOT of requests, we included `index.json`. It was created using `strict` mode (which means that invalid ISBNs were skipped) and contains all review IDs per ISBN - currently totalling 44757 (valid) ISBNs with 83710 reviews (averaging 1.87 reviews per ISBN).
 
 
 ## Getting started
