@@ -674,5 +674,5 @@ class Ajum():
 
         # Loop over JSON files ..
         for file in glob.glob(self.cache_dir + '/*.json'):
-            # .. deleting each on of them
+            # .. deleting each one of them
             os.remove(file)
