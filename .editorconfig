@@ -1,5 +1,5 @@
-# EditorConfig
-# See https://EditorConfig.org
+# For more information,
+# see https://editorconfig.org
 
 root = true
 
@@ -10,3 +10,6 @@ end_of_line = lf
 indent_style = space
 insert_final_newline = true
 trim_trailing_whitespace = true
+
+[*.md]
+trim_trailing_whitespace = false
